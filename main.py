@@ -1,6 +1,8 @@
 import pyaudio
 import wave
 import pynput.mouse
+import numpy as np
+import time
 
 CHUNK = 1024
 FORMAT = pyaudio.paInt16
@@ -11,29 +13,27 @@ THRESHOLD = 1500
 # Initializing PyAudio
 p = pyaudio.PyAudio()
 
-stream = p.open(format=FORMAT,
-                channels=CHANNELS,
-                rate=RATE,
-                input=True,
-                frames_per_buffer=CHUNK)
+with p.open(format=FORMAT,
+            channels=CHANNELS,
+            rate=RATE,
+            input=True,
+            frames_per_buffer=CHUNK) as stream:
 
-noise_detected = False
+    mouse = pynput.mouse.Controller()
+    noise_detected = False
 
-while True:
-    # Reading Sound
-    data = stream.read(CHUNK)
-    data_int = wave.struct.unpack("%dh"%(len(data)/2), data)
-    amplitude = max(data_int)
-    
-    if amplitude > THRESHOLD:
-        print("Sound amplitude is : ", amplitude)
-        mouse = pynput.mouse.Controller()
-        mouse.press(pynput.mouse.Button.left)
-        noise_detected = True
-    elif noise_detected:
-        mouse.release(pynput.mouse.Button.left)
-        noise_detected = False
+    while True:
+        # Reading Sound
+        data = stream.read(CHUNK)
+        data_int = np.frombuffer(data, dtype=np.int16)
+        amplitude = np.amax(data_int)
+        
+        if amplitude > THRESHOLD:
+            print("Sound amplitude is : ", amplitude)
+            mouse.press(pynput.mouse.Button.left)
+            noise_detected = True
+        elif noise_detected:
+            mouse.release(pynput.mouse.Button.left)
+            noise_detected = False
 
-stream.stop_stream()
-stream.close()
-p.terminate()
+        time.sleep(0.01)
